@@ -11,19 +11,28 @@ class GameLogic extends ChangeNotifier {
   GameState _gameState = GameState.waiting;
   Timer? _countdownTimer;
   int _remainingSeconds = 3;
+  double _countdownProgress = 0.0; // Progress from 0.0 to 1.0
+  bool _shouldResetProgress = false;
   int _colorIndex = 0;
   FingerData? _winner;
   bool _hasShownInstructions = false;
   Color? _winnerBackgroundColor;
   double _winnerCircleScale = 1.0;
+  Timer? _pulseTimer;
+  double _pulseScale = 1.0;
+  bool _pulseDirection = true; // true = growing, false = shrinking
+  int _previousFingerCount = 0; // Track previous finger count for countdown reset
 
   Map<int, FingerData> get activeFingers => Map.unmodifiable(_activeFingers);
   GameState get gameState => _gameState;
   int get remainingSeconds => _remainingSeconds;
+  double get countdownProgress => _countdownProgress;
+  bool get shouldResetProgress => _shouldResetProgress;
   FingerData? get winner => _winner;
   Color? get winnerBackgroundColor => _winnerBackgroundColor;
   bool get hasShownInstructions => _hasShownInstructions;
   double get winnerCircleScale => _winnerCircleScale;
+  double get pulseScale => _pulseScale;
 
   void addFinger(int pointerId, Offset position) {
     if (_gameState == GameState.winnerSelected) {
@@ -48,6 +57,11 @@ class GameLogic extends ChangeNotifier {
       // Animate scale down to normal size
       _animateFingerEntry(pointerId);
       
+      // Start pulse animation if this is the first or second finger
+      if (_activeFingers.length >= 1) {
+        _startPulseAnimation();
+      }
+      
       _checkCountdownCondition();
       notifyListeners();
     }
@@ -63,6 +77,12 @@ class GameLogic extends ChangeNotifier {
   void removeFinger(int pointerId) {
     if (_activeFingers.containsKey(pointerId)) {
       _activeFingers.remove(pointerId);
+      
+      // Stop pulse animation if no fingers remain
+      if (_activeFingers.isEmpty) {
+        _stopPulseAnimation();
+      }
+      
       _checkCountdownCondition();
       notifyListeners();
     }
@@ -86,23 +106,84 @@ class GameLogic extends ChangeNotifier {
     });
   }
 
+  void _startPulseAnimation() {
+    // Stop any existing pulse animation
+    _pulseTimer?.cancel();
+    
+    _pulseTimer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
+      if (_activeFingers.isEmpty || _gameState != GameState.waiting && _gameState != GameState.countdown) {
+        timer.cancel();
+        _pulseScale = 1.0;
+        return;
+      }
+
+      // Pulse between 0.9 and 1.1 (20% variation)
+      const pulseRange = 0.1;
+      const pulseSpeed = 0.02;
+      
+      if (_pulseDirection) {
+        _pulseScale += pulseSpeed;
+        if (_pulseScale >= 1.0 + pulseRange) {
+          _pulseDirection = false;
+        }
+      } else {
+        _pulseScale -= pulseSpeed;
+        if (_pulseScale <= 1.0 - pulseRange) {
+          _pulseDirection = true;
+        }
+      }
+      
+      notifyListeners();
+    });
+  }
+
+  void _stopPulseAnimation() {
+    _pulseTimer?.cancel();
+    _pulseScale = 1.0;
+  }
+
   void _checkCountdownCondition() {
-    if (_activeFingers.length >= 2 && _gameState == GameState.waiting) {
+    final currentFingerCount = _activeFingers.length;
+    
+    if (currentFingerCount >= 2 && _gameState == GameState.waiting) {
       _startCountdown();
-    } else if (_activeFingers.length < 2 && _gameState == GameState.countdown) {
+      _previousFingerCount = currentFingerCount;
+    } else if (currentFingerCount >= 2 && _gameState == GameState.countdown) {
+      // Reset countdown when finger count changes during active countdown
+      if (currentFingerCount != _previousFingerCount) {
+        _resetCountdown();
+        _previousFingerCount = currentFingerCount;
+      }
+    } else if (currentFingerCount < 2 && _gameState == GameState.countdown) {
       _cancelCountdown();
+      _previousFingerCount = currentFingerCount;
+    } else {
+      _previousFingerCount = currentFingerCount;
     }
   }
 
   void _startCountdown() {
     _gameState = GameState.countdown;
     _remainingSeconds = 3;
+    _countdownProgress = 0.0;
+    _shouldResetProgress = false;
     
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      _remainingSeconds--;
+    // Use a higher frequency timer for smooth progress updates
+    const totalDuration = Duration(seconds: 2); // 2 seconds for faster gameplay
+    const updateInterval = Duration(milliseconds: 16); // ~60fps
+    final totalSteps = totalDuration.inMilliseconds / updateInterval.inMilliseconds;
+    int currentStep = 0;
+    
+    _countdownTimer = Timer.periodic(updateInterval, (timer) {
+      currentStep++;
+      _countdownProgress = currentStep / totalSteps;
+      
+      // Update remaining seconds for any logic that still needs it
+      _remainingSeconds = (3 - (_countdownProgress * 3)).ceil();
+      
       notifyListeners();
       
-      if (_remainingSeconds <= 0) {
+      if (_countdownProgress >= 1.0) {
         _selectWinner();
         timer.cancel();
       }
@@ -113,7 +194,29 @@ class GameLogic extends ChangeNotifier {
     _countdownTimer?.cancel();
     _gameState = GameState.waiting;
     _remainingSeconds = 3;
+    _shouldResetProgress = true;
     notifyListeners();
+    
+    // Reset the flag after animation completes (400ms animation + small buffer)
+    Timer(const Duration(milliseconds: 450), () {
+      _shouldResetProgress = false;
+      _countdownProgress = 0.0;
+      notifyListeners();
+    });
+  }
+
+  void _resetCountdown() {
+    _countdownTimer?.cancel();
+    _remainingSeconds = 3;
+    _shouldResetProgress = true;
+    notifyListeners();
+    
+    // Brief delay for reset animation, then start new countdown
+    Timer(const Duration(milliseconds: 450), () {
+      _shouldResetProgress = false;
+      _countdownProgress = 0.0;
+      _startCountdown();
+    });
   }
 
   void _selectWinner() {
@@ -160,19 +263,30 @@ class GameLogic extends ChangeNotifier {
 
   void _resetGame() {
     _countdownTimer?.cancel();
+    _stopPulseAnimation();
     _activeFingers.clear();
     _gameState = GameState.waiting;
     _remainingSeconds = 3;
+    _countdownProgress = 0.0;
+    _shouldResetProgress = false;
     _winner = null;
     _winnerBackgroundColor = null;
     _winnerCircleScale = 1.0;
     _colorIndex = 0;
+    _previousFingerCount = 0;
+    notifyListeners();
+  }
+
+  void onProgressResetComplete() {
+    _shouldResetProgress = false;
+    _countdownProgress = 0.0;
     notifyListeners();
   }
 
   @override
   void dispose() {
     _countdownTimer?.cancel();
+    _pulseTimer?.cancel();
     super.dispose();
   }
 }

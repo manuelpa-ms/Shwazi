@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/game_logic.dart';
 import '../widgets/finger_circle.dart';
-import '../widgets/countdown_timer.dart';
+import '../widgets/circular_progress_bar.dart';
 
 class GameScreen extends StatelessWidget {
   const GameScreen({super.key});
@@ -40,19 +40,19 @@ class GameScreen extends StatelessWidget {
                       fingers: gameLogic.activeFingers,
                       backgroundColor: gameLogic.winnerBackgroundColor,
                       winnerCircleScale: gameLogic.winnerCircleScale,
+                      pulseScale: gameLogic.pulseScale,
                     ),
                   ),
                 ),
               ),
               
-              // Countdown timer overlay
-              if (gameLogic.gameState == GameState.countdown)
-                Center(
-                  child: CountdownTimer(
-                    remainingSeconds: gameLogic.remainingSeconds,
-                    isVisible: true,
-                  ),
-                ),
+              // Circular progress bar overlay
+              CircularProgressBar(
+                progress: gameLogic.countdownProgress,
+                isVisible: gameLogic.gameState == GameState.countdown || gameLogic.shouldResetProgress,
+                shouldReset: gameLogic.shouldResetProgress,
+                onResetComplete: gameLogic.onProgressResetComplete,
+              ),
               
               // Instructions overlay - only show on first launch
               if (gameLogic.gameState == GameState.waiting && 
