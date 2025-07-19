@@ -26,6 +26,7 @@ class _CircularProgressBarState extends State<CircularProgressBar>
   late AnimationController _resetAnimationController;
   late Animation<double> _resetAnimation;
   double _lastProgress = 0.0;
+  bool _isResetting = false; // Flag to prevent multiple reset animations
 
   @override
   void initState() {
@@ -45,6 +46,7 @@ class _CircularProgressBarState extends State<CircularProgressBar>
     _resetAnimation.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         _resetAnimationController.reset();
+        _isResetting = false;
         widget.onResetComplete?.call();
       }
     });
@@ -53,14 +55,26 @@ class _CircularProgressBarState extends State<CircularProgressBar>
   @override
   void didUpdateWidget(CircularProgressBar oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.shouldReset && !oldWidget.shouldReset) {
+    
+    // Handle visibility changes - if we become invisible, reset everything
+    if (!widget.isVisible && oldWidget.isVisible) {
+      _resetAnimationController.stop();
+      _resetAnimationController.reset();
+      _isResetting = false;
+      _lastProgress = 0.0;
+      return;
+    }
+    
+    // Only start reset animation if we're not already resetting
+    if (widget.shouldReset && !oldWidget.shouldReset && !_isResetting) {
       // Capture the current progress when reset starts
       _lastProgress = oldWidget.progress;
+      _isResetting = true;
       _resetAnimationController.forward();
     }
     
-    // Update _lastProgress when not resetting
-    if (!widget.shouldReset) {
+    // Update _lastProgress when not resetting and visible
+    if (!widget.shouldReset && widget.isVisible && !_isResetting) {
       _lastProgress = widget.progress;
     }
   }

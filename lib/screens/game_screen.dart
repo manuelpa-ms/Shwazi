@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/game_logic.dart';
@@ -49,7 +50,7 @@ class GameScreen extends StatelessWidget {
               // Circular progress bar overlay
               CircularProgressBar(
                 progress: gameLogic.countdownProgress,
-                isVisible: gameLogic.gameState == GameState.countdown || gameLogic.shouldResetProgress,
+                isVisible: gameLogic.isProgressBarVisible,
                 shouldReset: gameLogic.shouldResetProgress,
                 onResetComplete: gameLogic.onProgressResetComplete,
               ),
@@ -90,28 +91,29 @@ class GameScreen extends StatelessWidget {
                   ),
                 ),
               
-              // Debug info (finger count)
-              Positioned(
-                top: 50,
-                left: 20,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    'Fingers: ${gameLogic.activeFingers.length}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
+              // Debug info (finger count) - only in debug builds
+              if (kDebugMode)
+                Positioned(
+                  top: 50,
+                  left: 20,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'Fingers: ${gameLogic.activeFingers.length}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                 ),
-              ),
             ],
           );
         },

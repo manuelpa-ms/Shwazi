@@ -10,6 +10,7 @@ class GameLogic extends ChangeNotifier {
   final Map<int, FingerData> _activeFingers = {};
   GameState _gameState = GameState.waiting;
   Timer? _countdownTimer;
+  Timer? _resetTimer; // Track reset timer separately
   int _remainingSeconds = 3;
   double _countdownProgress = 0.0; // Progress from 0.0 to 1.0
   bool _shouldResetProgress = false;
@@ -28,6 +29,7 @@ class GameLogic extends ChangeNotifier {
   int get remainingSeconds => _remainingSeconds;
   double get countdownProgress => _countdownProgress;
   bool get shouldResetProgress => _shouldResetProgress;
+  bool get isProgressBarVisible => _gameState == GameState.countdown || _shouldResetProgress;
   FingerData? get winner => _winner;
   Color? get winnerBackgroundColor => _winnerBackgroundColor;
   bool get hasShownInstructions => _hasShownInstructions;
@@ -149,13 +151,17 @@ class GameLogic extends ChangeNotifier {
       _startCountdown();
       _previousFingerCount = currentFingerCount;
     } else if (currentFingerCount >= 2 && _gameState == GameState.countdown) {
-      // Reset countdown when finger count changes during active countdown
+      // Always reset countdown when finger count changes during active countdown
+      // This ensures any finger addition or removal resets the timer
       if (currentFingerCount != _previousFingerCount) {
         _resetCountdown();
         _previousFingerCount = currentFingerCount;
       }
-    } else if (currentFingerCount < 2 && _gameState == GameState.countdown) {
-      _cancelCountdown();
+    } else if (currentFingerCount < 2) {
+      // Cancel countdown if we drop below 2 fingers, regardless of current state
+      if (_gameState == GameState.countdown) {
+        _cancelCountdown();
+      }
       _previousFingerCount = currentFingerCount;
     } else {
       _previousFingerCount = currentFingerCount;
@@ -169,7 +175,7 @@ class GameLogic extends ChangeNotifier {
     _shouldResetProgress = false;
     
     // Use a higher frequency timer for smooth progress updates
-    const totalDuration = Duration(seconds: 2); // 2 seconds for faster gameplay
+    const totalDuration = Duration(milliseconds: 1200); // 1.5 seconds (25% faster than 2 seconds)
     const updateInterval = Duration(milliseconds: 16); // ~60fps
     final totalSteps = totalDuration.inMilliseconds / updateInterval.inMilliseconds;
     int currentStep = 0;
@@ -192,30 +198,42 @@ class GameLogic extends ChangeNotifier {
 
   void _cancelCountdown() {
     _countdownTimer?.cancel();
+    _resetTimer?.cancel(); // Cancel any existing reset timer
     _gameState = GameState.waiting;
     _remainingSeconds = 3;
     _shouldResetProgress = true;
     notifyListeners();
     
     // Reset the flag after animation completes (400ms animation + small buffer)
-    Timer(const Duration(milliseconds: 450), () {
+    _resetTimer = Timer(const Duration(milliseconds: 450), () {
       _shouldResetProgress = false;
       _countdownProgress = 0.0;
+      _resetTimer = null;
       notifyListeners();
     });
   }
 
   void _resetCountdown() {
     _countdownTimer?.cancel();
+    _resetTimer?.cancel(); // Cancel any existing reset timer
     _remainingSeconds = 3;
     _shouldResetProgress = true;
     notifyListeners();
     
     // Brief delay for reset animation, then start new countdown
-    Timer(const Duration(milliseconds: 450), () {
-      _shouldResetProgress = false;
-      _countdownProgress = 0.0;
-      _startCountdown();
+    _resetTimer = Timer(const Duration(milliseconds: 450), () {
+      if (_gameState == GameState.countdown) { // Only restart if still in countdown state
+        _shouldResetProgress = false;
+        _countdownProgress = 0.0;
+        _resetTimer = null;
+        _startCountdown();
+      } else {
+        // If state changed during reset, ensure we clean up
+        _shouldResetProgress = false;
+        _countdownProgress = 0.0;
+        _resetTimer = null;
+        notifyListeners();
+      }
     });
   }
 
@@ -263,6 +281,7 @@ class GameLogic extends ChangeNotifier {
 
   void _resetGame() {
     _countdownTimer?.cancel();
+    _resetTimer?.cancel(); // Cancel any existing reset timer
     _stopPulseAnimation();
     _activeFingers.clear();
     _gameState = GameState.waiting;
@@ -286,6 +305,7 @@ class GameLogic extends ChangeNotifier {
   @override
   void dispose() {
     _countdownTimer?.cancel();
+    _resetTimer?.cancel();
     _pulseTimer?.cancel();
     super.dispose();
   }
