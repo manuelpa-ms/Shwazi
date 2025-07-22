@@ -11,6 +11,7 @@ class GameLogic extends ChangeNotifier {
   GameState _gameState = GameState.waiting;
   Timer? _countdownTimer;
   Timer? _resetTimer; // Track reset timer separately
+  Timer? _winnerDisplayTimer; // Timer to keep winner displayed
   int _remainingSeconds = 3;
   double _countdownProgress = 0.0; // Progress from 0.0 to 1.0
   bool _shouldResetProgress = false;
@@ -23,6 +24,7 @@ class GameLogic extends ChangeNotifier {
   double _pulseScale = 1.0;
   bool _pulseDirection = true; // true = growing, false = shrinking
   int _previousFingerCount = 0; // Track previous finger count for countdown reset
+  bool _isInWinnerDisplayMode = false; // Track if we're in the winner display period
 
   Map<int, FingerData> get activeFingers => Map.unmodifiable(_activeFingers);
   GameState get gameState => _gameState;
@@ -35,9 +37,15 @@ class GameLogic extends ChangeNotifier {
   bool get hasShownInstructions => _hasShownInstructions;
   double get winnerCircleScale => _winnerCircleScale;
   double get pulseScale => _pulseScale;
+  bool get isInWinnerDisplayMode => _isInWinnerDisplayMode;
 
   void addFinger(int pointerId, Offset position) {
-    if (_gameState == GameState.winnerSelected) {
+    if (_gameState == GameState.winnerSelected && !_isInWinnerDisplayMode) {
+      _resetGame();
+    }
+
+    // If a finger is added during winner display mode, reset and start tracking
+    if (_isInWinnerDisplayMode) {
       _resetGame();
     }
 
@@ -77,6 +85,11 @@ class GameLogic extends ChangeNotifier {
   }
 
   void removeFinger(int pointerId) {
+    // Don't remove the winning finger during winner display mode
+    if (_isInWinnerDisplayMode && _winner?.pointerId == pointerId) {
+      return;
+    }
+
     if (_activeFingers.containsKey(pointerId)) {
       _activeFingers.remove(pointerId);
       
@@ -274,7 +287,14 @@ class GameLogic extends ChangeNotifier {
       if (currentStep >= steps) {
         timer.cancel();
         _gameState = GameState.winnerSelected;
+        _isInWinnerDisplayMode = true;
         notifyListeners();
+        
+        // Start timer to keep winner displayed for 3 seconds
+        _winnerDisplayTimer = Timer(const Duration(seconds: 3), () {
+          _isInWinnerDisplayMode = false;
+          _resetGame();
+        });
       }
     });
   }
@@ -282,6 +302,7 @@ class GameLogic extends ChangeNotifier {
   void _resetGame() {
     _countdownTimer?.cancel();
     _resetTimer?.cancel(); // Cancel any existing reset timer
+    _winnerDisplayTimer?.cancel(); // Cancel winner display timer
     _stopPulseAnimation();
     _activeFingers.clear();
     _gameState = GameState.waiting;
@@ -293,6 +314,7 @@ class GameLogic extends ChangeNotifier {
     _winnerCircleScale = 1.0;
     _colorIndex = 0;
     _previousFingerCount = 0;
+    _isInWinnerDisplayMode = false;
     notifyListeners();
   }
 
@@ -306,6 +328,7 @@ class GameLogic extends ChangeNotifier {
   void dispose() {
     _countdownTimer?.cancel();
     _resetTimer?.cancel();
+    _winnerDisplayTimer?.cancel();
     _pulseTimer?.cancel();
     super.dispose();
   }

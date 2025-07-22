@@ -3,15 +3,11 @@ import 'package:flutter/material.dart';
 class ColorGenerator {
   static const List<Color> _colors = [
     Colors.red,
-    Colors.blue,
     Colors.green,
-    Colors.orange,
-    Colors.purple,
-    Colors.pink,
+    Color.fromARGB(255, 233, 30, 148),
     Colors.teal,
     Colors.amber,
     Colors.indigo,
-    Colors.cyan,
     Colors.lime,
     Colors.deepOrange,
     Colors.lightBlue,
