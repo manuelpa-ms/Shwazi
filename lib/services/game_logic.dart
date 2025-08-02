@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/finger_data.dart';
 import '../utils/color_generator.dart';
 
 enum GameState { waiting, countdown, winnerSelected, animating }
 
-class GameLogic extends ChangeNotifier {
+class GameLogic extends ChangeNotifier with WidgetsBindingObserver {
   final Map<int, FingerData> _activeFingers = {};
   GameState _gameState = GameState.waiting;
   Timer? _countdownTimer;
@@ -25,6 +26,11 @@ class GameLogic extends ChangeNotifier {
   bool _pulseDirection = true; // true = growing, false = shrinking
   int _previousFingerCount = 0; // Track previous finger count for countdown reset
   bool _isInWinnerDisplayMode = false; // Track if we're in the winner display period
+
+  GameLogic() {
+    // Add this instance as an app lifecycle observer
+    WidgetsBinding.instance.addObserver(this);
+  }
 
   Map<int, FingerData> get activeFingers => Map.unmodifiable(_activeFingers);
   GameState get gameState => _gameState;
@@ -325,7 +331,32 @@ class GameLogic extends ChangeNotifier {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    // Clear all tracked fingers when app goes to background or becomes inactive
+    // This prevents ghost fingers from edge gestures when app is reopened
+    if (state == AppLifecycleState.paused || 
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      _clearAllFingers();
+    }
+  }
+
+  void _clearAllFingers() {
+    if (_activeFingers.isNotEmpty) {
+      _activeFingers.clear();
+      _cancelCountdown();
+      _stopPulseAnimation();
+      _gameState = GameState.waiting;
+      _previousFingerCount = 0;
+      notifyListeners();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _countdownTimer?.cancel();
     _resetTimer?.cancel();
     _winnerDisplayTimer?.cancel();
