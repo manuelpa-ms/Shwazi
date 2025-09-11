@@ -33,6 +33,16 @@ android {
     compileSdk 35
     ndkVersion flutter.ndkVersion
 
+    // Ensure native libraries are stored uncompressed to comply with 16KB page support requirement
+    // (Google Play warning about 16KB pages generally relates to enabling uncompressed native libs
+    // so that the OS can directly map them). Flutter new templates set this automatically via
+    // packaging options when using newer AGP, but we enforce it explicitly here.
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging false
+        }
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
@@ -66,6 +76,8 @@ android {
     buildTypes {
         release {
             signingConfig signingConfigs.release
+            minifyEnabled false
+            shrinkResources false
         }
     }
 }

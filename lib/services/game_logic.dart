@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/finger_data.dart';
 import '../utils/color_generator.dart';
+import 'haptics.dart';
 
 enum GameState { waiting, countdown, winnerSelected, animating }
 
@@ -46,6 +47,7 @@ class GameLogic extends ChangeNotifier with WidgetsBindingObserver {
   bool get isInWinnerDisplayMode => _isInWinnerDisplayMode;
 
   void addFinger(int pointerId, Offset position) {
+    Haptics.fingerDown();
     if (_gameState == GameState.winnerSelected && !_isInWinnerDisplayMode) {
       _resetGame();
     }
@@ -91,8 +93,10 @@ class GameLogic extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void removeFinger(int pointerId) {
-    // Don't remove the winning finger during winner display mode
-    if (_isInWinnerDisplayMode && _winner?.pointerId == pointerId) {
+    Haptics.fingerUp();
+    // Don't remove the winning finger during animation or winner display mode
+    if (((_gameState == GameState.animating) || _isInWinnerDisplayMode) &&
+        _winner?.pointerId == pointerId) {
       return;
     }
 
@@ -266,6 +270,7 @@ class GameLogic extends ChangeNotifier with WidgetsBindingObserver {
       _winner = fingersList[selectedIndex];
       _winner!.isWinner = true;
       _winnerBackgroundColor = _winner!.color;
+  Haptics.winnerChosen();
       
       // Remove losing fingers immediately
       final winnerPointerId = _winner!.pointerId;
