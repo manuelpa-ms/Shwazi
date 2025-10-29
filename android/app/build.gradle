@@ -12,6 +12,12 @@ if (localPropertiesFile.exists()) {
     }
 }
 
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
 if (flutterVersionCode == null) {
     flutterVersionCode = '1'
@@ -24,8 +30,18 @@ if (flutterVersionName == null) {
 
 android {
     namespace "com.manuelpa.shwazi"
-    compileSdk 34
+    compileSdk 35
     ndkVersion flutter.ndkVersion
+
+    // Ensure native libraries are stored uncompressed to comply with 16KB page support requirement
+    // (Google Play warning about 16KB pages generally relates to enabling uncompressed native libs
+    // so that the OS can directly map them). Flutter new templates set this automatically via
+    // packaging options when using newer AGP, but we enforce it explicitly here.
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging false
+        }
+    }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -43,14 +59,25 @@ android {
     defaultConfig {
         applicationId "com.manuelpa.shwazi"
         minSdk 21
-        targetSdk 34
+        targetSdk 35
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
     }
 
+    signingConfigs {
+        release {
+            keyAlias keystoreProperties['keyAlias']
+            keyPassword keystoreProperties['keyPassword']
+            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+            storePassword keystoreProperties['storePassword']
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            shrinkResources false
         }
     }
 }

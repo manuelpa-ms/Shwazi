@@ -5,11 +5,13 @@ class CirclePainter extends CustomPainter {
   final Map<int, FingerData> fingers;
   final Color? backgroundColor;
   final double winnerCircleScale;
+  final double pulseScale;
 
   CirclePainter({
     required this.fingers,
     this.backgroundColor,
     this.winnerCircleScale = 1.0,
+    this.pulseScale = 1.0,
   });
 
   @override
@@ -22,8 +24,8 @@ class CirclePainter extends CustomPainter {
 
       // If this is the winner and we're animating, scale it up dramatically
       final radius = finger.isWinner 
-          ? 30.0 * finger.scale * winnerCircleScale
-          : 30.0 * finger.scale;
+          ? 45.0 * finger.scale * winnerCircleScale
+          : 45.0 * finger.scale * pulseScale;
       
       canvas.drawCircle(finger.position, radius, paint);
 
@@ -45,7 +47,7 @@ class CirclePainter extends CustomPainter {
           ..color = Colors.black
           ..style = PaintingStyle.fill;
 
-        final staticRadius = 30.0 * finger.scale; // Keep original size
+        final staticRadius = 45.0 * finger.scale * pulseScale; // Keep original size with pulse
         canvas.drawCircle(finger.position, staticRadius, blackPaint);
 
         // Add white border to the black circle
@@ -63,6 +65,7 @@ class CirclePainter extends CustomPainter {
   bool shouldRepaint(CirclePainter oldDelegate) {
     return fingers != oldDelegate.fingers || 
            backgroundColor != oldDelegate.backgroundColor ||
-           winnerCircleScale != oldDelegate.winnerCircleScale;
+           winnerCircleScale != oldDelegate.winnerCircleScale ||
+           pulseScale != oldDelegate.pulseScale;
   }
 }
