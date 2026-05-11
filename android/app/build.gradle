@@ -31,7 +31,7 @@ if (flutterVersionName == null) {
 android {
     namespace "com.manuelpa.shwazi"
     compileSdk 35
-    ndkVersion flutter.ndkVersion
+    ndkVersion "28.2.13676358"
 
     // Ensure native libraries are stored uncompressed to comply with 16KB page support requirement
     // (Google Play warning about 16KB pages generally relates to enabling uncompressed native libs
@@ -58,7 +58,7 @@ android {
 
     defaultConfig {
         applicationId "com.manuelpa.shwazi"
-        minSdk 21
+        minSdkVersion flutter.minSdkVersion
         targetSdk 35
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName

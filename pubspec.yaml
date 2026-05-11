@@ -1,10 +1,10 @@
 name: shwazi
 description: A multi-platform finger selection app with touch tracking and animations.
-version: 1.0.7+7
+version: 1.0.12+12
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
-  flutter: ">=3.10.0"
+  flutter: ">=3.24.0"
 
 dependencies:
   flutter:

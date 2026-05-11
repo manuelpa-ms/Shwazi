@@ -5,8 +5,7 @@
     <application
         android:label="Shwazi"
         android:name="${applicationName}"
-        android:icon="@mipmap/launcher_icon"
-        android:extractNativeLibs="false">
+        android:icon="@mipmap/launcher_icon">
         <activity
             android:name=".MainActivity"
             android:exported="true"
